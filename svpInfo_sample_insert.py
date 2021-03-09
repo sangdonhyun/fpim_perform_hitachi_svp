@@ -16,6 +16,7 @@ import time
 import redis
 #
 import common
+import random
 import fletaDbms
 
 
@@ -54,32 +55,36 @@ password = kes2719!
         cfgFile = os.path.join('config','config.cfg')
         cfg.read(cfgFile)
         return cfg
-
+   
     def getFileList(self,dataDir='.\data'):
         monList=self.monList()
         listDir=[]
-        mon_bit = self.cfg.get('common','mon_bit')
+        mon_bit = self.cfg.get('common', 'mon_bit')
+        print 'mon_bit :',mon_bit
         for (path, dir, files) in os.walk(dataDir):
             for filename in files:
                 f = os.path.join(path, filename)
-                if mon_bit:
+                if mon_bit == 'True':
                     if filename in monList:
+
                         listDir.append(f)
                 else:
-                    listDir.append(f)
+                    print os.path.splitext(filename)[-1]
+                    if os.path.splitext(filename)[-1] == '.csv':
+                        listDir.append(f)
         return listDir
 
-
+    
     def monList(self):
         monList=[]
         for mon in sorted(set(self.cfg.options('monitor'))):
             monList.append(self.cfg.get('monitor',mon))
         return monList
-
+    
     def zipExtract(self):
         zlist=glob.glob(os.path.join('data','*'))
         print zlist
-
+        
         for zname in zlist:
             print zname
             zip_ref = zipfile.ZipFile(zname, 'r')
@@ -96,7 +101,7 @@ password = kes2719!
             targetPath = os.path.join('data',arg)
             print arg,os.path.isdir(targetPath)
             if os.path.isdir(targetPath):
-                shutil.rmtree(targetPath)
+                shutil.rmtree(targetPath)   
 
 
     def getFlagNm(self,fileName):
@@ -109,7 +114,7 @@ password = kes2719!
         mon04=Port_KBPS.csv
         mon05=Port_Response.csv
         """
-
+        
         if fname=='PHY_Short_MP.csv' :
             flag_nm = 'MP'
         if fname=='PHY_Short_Write_Pending_Rate.csv' :
@@ -120,9 +125,9 @@ password = kes2719!
             flag_nm = 'PK'
         if fname=='Port_Response.csv' :
             flag_nm = 'PR'
-
+            
         return flag_nm
-
+    
     def insRedis(self,keyList):
         print self.latest_keys
         lkey_list=[]
@@ -138,19 +143,22 @@ password = kes2719!
             print key,k,v
             self.r.hset(key,k,v)
         for time_str in time_list:
-
-            check_date_time = datetime.datetime.strftime(datetime.datetime.strptime(check_date, '%Y-%m-%d %H:%M:%S'),
+            print time_str
+            check_date_time = datetime.datetime.strftime(datetime.datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S'),
                                                          '%Y-%m-%d %H')
 
             lkey = 'hitachi_latest_time_{SERIAL}_{DATETIME}'.format(SERIAL=self.serial,DATETIME=check_date_time)
             print lkey
             print time_str
-            self.r.lpush(lkey,time_str)
-
+            if not time_str in self.r.lrange(lkey,0,-1):
+                self.r.lpush(lkey,time_str)
+        print '-'*30
+        print max(time_list)
         llkey = 'hitachi_latest_time_{SERIAL}'.format(SERIAL=self.serial)
-        self.r.set(llkey, max(time_list))
+        self.r.set(llkey,max(time_list))
 
-
+        
+        
     def makeCopy(self,insFile):
         with open(insFile) as f:
             tmp = f.read().splitlines()
@@ -161,6 +169,10 @@ password = kes2719!
         if flag_nm not in self.r.lrange('hitachi_flag_list',0,-1):
             self.r.lpush('hitachi_flag_list',flag_nm)
         keyList=[]
+        print len(tmp)
+
+        print len(tmp) - 7
+        delta_min = len(tmp) - 7
         for i in range(len(tmp)):
             line = tmp[i]
             if 'Serial number :' in line:
@@ -178,15 +190,9 @@ password = kes2719!
                 print datestr
                 check_date = datetime.datetime.strptime(datestr, "%Y/%m/%d %H:%M")
                 latest_time = datetime.datetime.strftime(check_date,'%Y-%m-%d %H')
-                """
-                hitachi_latest_time_00000000001002ALJ5EM_2021-03-08 09" 0 -1
-                """
-                lkey = "hitachi_latest_time_{SERIAL}_{LATEST_TIME}".format(SERIAL=serial,LATEST_TIME=latest_time)
-                print lkey
-                if lkey not in self.latest_keys:
-                    self.latest_keys.append(lkey)
+
             if ',' in line and '\"' in line:
-                print line
+                # print line
                 line = line.replace('"','')
                 if 'No.' in line:
                     keys = line.split(',')
@@ -199,16 +205,20 @@ password = kes2719!
                         if k == 'time':
                             #"2017/04/18 11:07"
                             check_date = datetime.datetime.strptime(v.strip(), "%Y/%m/%d %H:%M")
-                            check_date_str = datetime.datetime.strftime(check_date,'%Y-%m-%d %H:%M:%S')
+                            check_date = datetime.datetime.now() - datetime.timedelta(minutes=delta_min)
+                            delta_min = delta_min - 1
+                            check_date_str = datetime.datetime.strftime(check_date,'%Y-%m-%d %H:%M:00')
 
                         if k == 'No.' or k == 'time':
                             pass
                         else:
-                            str= "%s\t%s\t%s\t%s\t%s\n"%(check_date.strftime('%Y-%m-%d %H:%M'),serial,flag_nm,k,v)
-                            # print str
-                            #print serial,check_date,flag_nm,k,v
-                            key="{CHECK_DATE}::{SERIAL}::{FLAG}".format(CHECK_DATE=check_date,SERIAL=serial,FLAG=flag_nm)
-                            #print key,k,v
+
+                            key="{CHECK_DATE}::{SERIAL}::{FLAG}".format(CHECK_DATE=check_date_str,SERIAL=serial,FLAG=flag_nm)
+                            print key,k,v
+                            if 'RATE' in flag_nm.upper():
+                                v = random.randrange(0, 99)
+                            else:
+                                v=random.randrange(-3,1500)
                             keyList.append((key,k,v))
                             #lineList.append(str)
 
@@ -217,9 +227,10 @@ password = kes2719!
     def set_flag(self,flag):
         self.r.lrange('hitachi_flag_list')
     def load(self):
-        # self.deletePath()
+        self.deletePath()
         self.zipExtract()
         fList= self.getFileList()
+        print 'flie List:',fList
         for f in fList:
             keyList=self.makeCopy(f)
 
@@ -289,19 +300,14 @@ apply                           ; Executes processing for saving monitoring data
         return cfgFile
     
     def deletePath(self):
-        cmd='del /F /S /Q .\data\*'
-        print cmd
-        print os.popen(cmd).read()
-        print os.popen('dir .\data').read()
-        # print os.listdir(os.path.join('data'))
-        # for arg in os.listdir(os.path.join('data')):
-        #     targetPath = os.path.join('data',arg)
-        #     print arg,os.path.isdir(targetPath)
-        #     if os.path.isdir(targetPath):
-        #         shutil.rmtree(targetPath)
+        print os.listdir(os.path.join('data'))
+        for arg in os.listdir(os.path.join('data')):
+            targetPath = os.path.join('data',arg)
+            print arg,os.path.isdir(targetPath)
+            if os.path.isdir(targetPath):
+                shutil.rmtree(targetPath)
      
     def run(self):
-        self.deletePath()
         print self.svp
         cfgFile = self.makeCfg()
         cmdList=self.getCmd()
@@ -352,4 +358,6 @@ class Manager():
 
 
 if __name__=='__main__':
-    Manager().main()
+    while True:
+        Manager().main()
+        time.sleep(60*5)

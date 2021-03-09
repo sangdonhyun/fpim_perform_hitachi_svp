@@ -1,0 +1,11 @@
+svpip 40.10.12.199
+login 40.10.12.199 "40.10.12.199"
+show
+group PhyProc                   ; Micro-Processor usage
+group PhyESW                    ; Access Paths and Write Pending
+group Port                      ; Port usage
+shortrange  -0005:              ; Number of monitored CUs is 64 or less
+longrange -000001:
+outpath out                     ; Specifies the sub-directory in which files will be saved
+option compress                 ; Specifies whether to compress files
+apply                           ; Executes processing for saving monitoring data in files

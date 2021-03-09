@@ -2,6 +2,9 @@
 Created on 2017. 7. 11.
 
 @author: muse
+SVP -> localhost
+Redis
+
 '''
 import os
 import ConfigParser

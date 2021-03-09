@@ -158,9 +158,6 @@ password = kes2719!
         cd= dd.strftime('%Y-%m-%d %H:%M:%S')
         print 
 
-    
-    
-    
     def main(self):
         
         dlist =self.getData()

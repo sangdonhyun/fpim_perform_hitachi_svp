@@ -67,6 +67,6 @@ longrange -000001:
 ;  | end of time statements
 ;  +---------------------------------------------------------------------------------------------------+
 
-outpath out                     ; Specifies the sub-directory in which files will be saved
+outpath data                     ; Specifies the sub-directory in which files will be saved
 option compress                 ; Specifies whether to compress files
 apply                           ; Executes processing for saving monitoring data in files

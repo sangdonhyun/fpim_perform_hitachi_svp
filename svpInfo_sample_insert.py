@@ -69,7 +69,7 @@ password = kes2719!
 
                         listDir.append(f)
                 else:
-                    print os.path.splitext(filename)[-1]
+                    # print os.path.splitext(filename)[-1]
                     if os.path.splitext(filename)[-1] == '.csv':
                         listDir.append(f)
         return listDir
